@@ -19,10 +19,6 @@ class Particle:
         self.acceleration = self.acceleration + force
 
     def reset_position(self):
-        """
-        Reseta a partícula para sua posição original.
-        """
         self.current_pos = self.original_pos.copy()
         self.velocity = Ponto(0, 0, 0)
         self.acceleration = Ponto(0, 0, 0)
-

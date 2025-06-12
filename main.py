@@ -29,7 +29,7 @@ TEMPO_TOTAL_ANIMACAO = TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ES
 
 # forças
 FORCA_GRAVIDADE = Ponto(0, -9.8, 0) #cai
-COEFICIENTE_QUIQUE = 0.6 #sobe
+QUICAR = 0.6 #sobe
 
 # camera
 camera_zoom = 1.0; 
@@ -137,11 +137,6 @@ def PosicUser(): # codigo base
         target_target = Ponto(0, altura_alvo, 0) # Olha para o centro, subindo em Y
 
     elif animation_time < TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO + TEMPO_CABECA_FORMADA:
-        # Fase 4: Cabeça formada - Câmera se aproxima do lado
-        current_phase_time = animation_time - (TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO)
-        progress = min(1.0, current_phase_time / TEMPO_CABECA_FORMADA) # Garante que o progresso não exceda 1.0
-
-        # Interpola da última posição para a posição final
         target_pos = Ponto(
             camera_config["final"]["pos"].x,
             camera_config["final"]["pos"].y,
@@ -153,19 +148,10 @@ def PosicUser(): # codigo base
             camera_config["final"]["target"].z
         )
         
-        # Para suavizar a transição da câmera para a posição final
-        # Usamos um lerp mais agressivo no início da fase final
-        cam_interpolacao = 0.05 + (progress * 0.05) # Aumenta o fator de interpolação gradualmente
-    else:
-        # Fase 5: Extra - Efeito pulsar com rotação
-        current_phase_time = animation_time - (TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO + TEMPO_CABECA_FORMADA)
-        progress = min(1.0, current_phase_time / TEMPO_EFEITO_PULSAR)
-        
-        # Mova a câmera para a frente para ver a cabeça rotacionando
+    else:        
         target_pos = camera_config["extra"]["pos"]
         target_target = camera_config["extra"]["target"]
         
-        # Transição suave da câmera
         cam_interpolacao = 0.08
 
     if animation_time >= TEMPO_TOTAL_ANIMACAO:
@@ -190,19 +176,17 @@ def PosicUser(): # codigo base
             current_camera_target.z + direction.z * camera_zoom
         )
 
-    # Interpolação suave para a posição e alvo da câmera
-    current_camera_position.x = current_camera_position.x * (1 - cam_interpolacao) + target_pos.x * cam_interpolacao
-    current_camera_position.y = current_camera_position.y * (1 - cam_interpolacao) + target_pos.y * cam_interpolacao
-    current_camera_position.z = current_camera_position.z * (1 - cam_interpolacao) + target_pos.z * cam_interpolacao
+    if not controlar_cam:  
+        current_camera_position = mover_camera_suave(current_camera_position, target_pos, cam_interpolacao)
+        current_camera_target = mover_camera_suave(current_camera_target, target_target, cam_interpolacao)
 
-    current_camera_target.x = current_camera_target.x * (1 - cam_interpolacao) + target_target.x * cam_interpolacao
-    current_camera_target.y = current_camera_target.y * (1 - cam_interpolacao) + target_target.y * cam_interpolacao
-    current_camera_target.z = current_camera_target.z * (1 - cam_interpolacao) + target_target.z * cam_interpolacao
-
+    # if not controlar_cam:
+    #     current_camera_position = target_pos.copy()
+    #     current_camera_target = target_target.copy()
 
     gluLookAt(current_camera_position.x, current_camera_position.y, current_camera_position.z,
-              current_camera_target.x, current_camera_target.y, current_camera_target.z,
-              0, 1.0, 0)
+            current_camera_target.x, current_camera_target.y, current_camera_target.z,
+            0, 1.0, 0)
 
 #codigo base
 def DesenhaLadrilho():
@@ -298,6 +282,13 @@ def desenha():
 
     glutSwapBuffers()
 
+def mover_camera_suave(atual, alvo, velocidade):
+    return Ponto(
+        atual.x + (alvo.x - atual.x) * velocidade,
+        atual.y + (alvo.y - atual.y) * velocidade,
+        atual.z + (alvo.z - atual.z) * velocidade
+    )
+
 # fica sendo chamada a cada frame
 def update_animation():
     global animation_time, hora_ultimo_frame, animation_phase, is_playing
@@ -310,158 +301,110 @@ def update_animation():
         animation_time += dt * animation_speed 
 
         if animation_time < TEMPO_CABECA_DIZENDO_SIM:
-            # Fase 1: Movimento de "sim" da cabeça
-            pass # A rotação é aplicada no `desenha()` para o modelo completo.
+            pass 
 
         elif animation_time < TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO:
-            # Fase 2: Desmontagem (partículas caem no chão e quicam)
+            ALTURA_CHAO = -1.0
+            ATRITO = 0.95
+            
             for p in particles:
-                p.apply_force(FORCA_GRAVIDADE) # Aplica gravidade
+                p.apply_force(FORCA_GRAVIDADE)
                 p.update(dt)
-
-                # Colisão com o "chão" (y = -1, que é a posição do piso)
-                if p.current_pos.y < -1.0:
-                    p.current_pos.y = -1.0 # Para de cair no chão
-                    p.velocity.y *= -COEFICIENTE_QUIQUE # Inverte a velocidade vertical e aplica o coeficiente de restituição
-                    # Se a velocidade for muito baixa, para o quique
+                
+                if p.current_pos.y < ALTURA_CHAO:
+                    p.current_pos.y = ALTURA_CHAO
+                    p.velocity.y = -p.velocity.y * QUICAR
+                    
                     if abs(p.velocity.y) < 0.1:
-                        p.velocity.y = 0.0
-                    # Adiciona um pouco de atrito horizontal para as partículas pararem
-                    p.velocity.x *= 0.95 # Reduz a velocidade horizontal
-                    p.velocity.z *= 0.95 # Reduz a velocidade horizontal
+                        p.velocity.y = 0
+                        
+                    p.velocity.x *= ATRITO
+                    p.velocity.z *= ATRITO
         
         elif animation_time < TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO:
-            # Fase de atraso após a queda, antes do redemoinho
-            # As partículas permanecem paradas no chão
             for p in particles:
                 p.velocity = Ponto(0,0,0)
                 p.acceleration = Ponto(0,0,0)
             pass
 
         elif animation_time < TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO:
-            # Fase 3: Redemoinho e formação da cabeça
             current_phase_time = animation_time - (TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO)
-            
-            # Fator de progresso da fase de redemoinho (0 a 1)
             progress = current_phase_time / TEMPO_TORNADO_REFORMANDO
-
-            # Ponto central do tornado que sobe
-            tornado_center_y = -1.0 + (progress * 5.0) # Começa no chão e sobe
-            tornado_center = Ponto(0, tornado_center_y, 0)
+            
+            redemoinho_centro = Ponto(0, -1.0 + 5.0 * progress, 0)
 
             for p in particles:
-                # Vetor da partícula para o centro do tornado
-                vec_to_center = tornado_center - p.current_pos
-                
-                # Força de atração principal (puxa para o centro do tornado)
-                attraction_strength = 5.0 + (progress * 15.0) # Aumenta a força de atração
-                attraction_force = vec_to_center.normalize() * attraction_strength
+                direction = (redemoinho_centro - p.current_pos).normalize()
+                dir_red = Ponto(-direction.z, 0, direction.x).normalize()
 
-                # Força espiral (tangencial ao centro do tornado no plano XZ)
-                # Quanto mais longe do centro, maior a força espiral
-                distance_from_center_xz = Ponto(p.current_pos.x, 0, p.current_pos.z).length()
-                
-                spiral_strength = 10.0 * progress # Aumenta a força espiral com o progresso
-                
-                # Vetor perpendicular ao vetor do centro para a partícula no plano XZ
-                # Isso cria a rotação
-                spiral_direction = Ponto(-vec_to_center.z, 0, vec_to_center.x).normalize()
-                spiral_force = spiral_direction * spiral_strength * distance_from_center_xz # Mais forte longe do centro
-                
-                # Força de elevação (para o tornado subir)
-                upward_force_strength = 8.0 * progress # Força para cima, aumenta com o progresso
-                upward_force = Ponto(0, upward_force_strength, 0)
+                forca_atracao = direction * 6.0
+                forca_redemoinho = dir_red * 3.0
+                forca_cima = Ponto(0, 3.0 * progress, 0)
 
-                # Combina as forças
-                total_force = attraction_force + spiral_force + upward_force
-                p.apply_force(total_force)
+                forca_total = forca_atracao + forca_redemoinho + forca_cima
+                p.apply_force(forca_total)
                 p.update(dt)
 
-                # Se a partícula estiver muito próxima da posição original, "trava" ela
                 if (p.current_pos - p.original_pos).length() < 0.1:
-                    p.current_pos = p.original_pos.copy()
-                    p.velocity = Ponto(0,0,0)
-                    p.acceleration = Ponto(0,0,0)
+                    p.reset_position()
 
         elif animation_time < TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO + TEMPO_CABECA_FORMADA:
-            # Fase 4: Cabeça formada
             for p in particles:
                 p.current_pos = p.original_pos.copy()
                 p.velocity = Ponto(0,0,0)
                 p.acceleration = Ponto(0,0,0)
         else:
-            # Fase 5: Extra - Efeito pulsar com rotação
-            current_phase_time = animation_time - (TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO + TEMPO_CABECA_FORMADA)
-            
-            # Efeito de pulsação - Calcula um fator de expansão usando função seno
-            # Oscila entre 0.95 e 1.05 (5% de expansão/contração)
-            pulse_factor = 1.0 + 0.05 * math.sin(current_phase_time * 2 * math.pi)
-            
-            # Mudança gradual de cor com o tempo
-            color_cycle = current_phase_time / 2.0  # Ciclo de cores a cada 2 segundos
-            
+            tempo_total = animation_time - (TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO + TEMPO_CABECA_FORMADA)
+            pulsacao = 1 + 0.05 * math.sin(tempo_total * 2 * math.pi)
+            ciclo = tempo_total / 2.0
+
             for p in particles:
-                # Posição pulsante - expande e contrai a partir do centro
-                center = Ponto(0, 0, 0)
-                direction = p.original_pos - center
-                p.current_pos = center + direction * pulse_factor
-                
-                # Mudança gradual de cor (efeito de onda de cores)
-                r = 0.5 + 0.5 * math.sin(color_cycle * 2 * math.pi)
-                g = 0.5 + 0.5 * math.sin(color_cycle * 2 * math.pi + 2 * math.pi/3)
-                b = 0.5 + 0.5 * math.sin(color_cycle * 2 * math.pi + 4 * math.pi/3)
+                p.current_pos = p.original_pos * pulsacao
+                r = 0.5 + 0.5 * math.sin(ciclo * 2 * math.pi)
+                g = 0.5 + 0.5 * math.sin(ciclo * 2 * math.pi + 2 * math.pi/3)
+                b = 0.5 + 0.5 * math.sin(ciclo * 2 * math.pi + 4 * math.pi/3)
                 p.color = [r, g, b]
-                
-                # Mantém velocidade e aceleração zeradas
                 p.velocity = Ponto(0,0,0)
                 p.acceleration = Ponto(0,0,0)
 
         if animation_time > TEMPO_TOTAL_ANIMACAO:
             animation_time = TEMPO_TOTAL_ANIMACAO
-            is_playing = False # Pausa a animação no final
+            is_playing = False 
 
-    glutPostRedisplay() # Solicita um redesenho da cena
+    glutPostRedisplay() 
 
 def teclado(key, x, y):
-    """
-    Função de callback para tratamento de eventos de teclado.
-    Controla a reprodução da animação (PLAY, PAUSE, REWIND, FORWARD).
-    """
     global is_playing, animation_time, animation_speed, animation_phase, particles, current_camera_position, current_camera_target, camera_zoom, controlar_cam
 
-    key = key.decode("utf-8").upper() # Converte a tecla para maiúscula
+    key = key.decode("utf-8").upper() 
 
-    if key == 'P': # Play/Pause
+    if key == 'P': 
         is_playing = not is_playing
         print("play" if is_playing else "pausada")
-    elif key == 'R': # Rewind (Voltar)
-        animation_time = 0.0 # Reinicia a animação
-        for p in particles: # Reseta todas as partículas para suas posições originais
+    elif key == 'R':
+        animation_time = 0.0 
+        for p in particles:
             p.reset_position()
-        # Resetar a posição da câmera para o início
         current_camera_position = camera_config["initial"]["pos"].copy()
         current_camera_target = camera_config["initial"]["target"].copy()
         print("reiniciada")
-    elif key == 'F': # Forward (Avançar)
-        # Avançar a animação de partículas é complexo, pois o estado depende do tempo.
-        # Para simplificar, vamos pular para o final da fase de redemoinho.
-        animation_time = TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO # Pula para o início da fase final
-        for p in particles: # Garante que as partículas estejam na posição original para a fase final
+    elif key == 'F': 
+        animation_time = TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO
+        for p in particles: 
             p.reset_position()
-        # Ajusta a câmera para a fase final
         current_camera_position = camera_config["final"]["pos"].copy()
         current_camera_target = camera_config["final"]["target"].copy()
         print("animacao avancada")
-    elif key == 'W':  # Zoom in (aproximar)
-        if animation_time >= TEMPO_TOTAL_ANIMACAO:  # Só funciona após o fim da animação
-            camera_zoom -= 0.5  # Reduz a distância (aproxima)
-            camera_zoom = max(2.0, camera_zoom)  # Limita o zoom mínimo
-    elif key == 'S':  # Zoom out (afastar)
-        if animation_time >= TEMPO_TOTAL_ANIMACAO:  # Só funciona após o fim da animação
-            camera_zoom += 0.5  # Aumenta a distância (afasta)
-            camera_zoom = min(20.0, camera_zoom)  # Limita o zoom máximo
+    elif key == 'W':  
+        if animation_time >= TEMPO_TOTAL_ANIMACAO:  
+            camera_zoom -= 0.5 
+            camera_zoom = max(2.0, camera_zoom)  
+    elif key == 'S': 
+        if animation_time >= TEMPO_TOTAL_ANIMACAO:  
+            camera_zoom += 0.5  
+            camera_zoom = min(20.0, camera_zoom) 
 
-    glutPostRedisplay() # Solicita um redesenho após a interação do teclado
+    glutPostRedisplay()
 
 # codigo base
 def main():
