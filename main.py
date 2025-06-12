@@ -67,7 +67,7 @@ def init():
     current_camera_target = camera_config["initial"]["target"].copy()
 
     DefineLuz()
-    PosicUser()
+    PosicCamera()
 
     hora_ultimo_frame = time.time() # Inicializa o tempo do último frame
 
@@ -94,7 +94,7 @@ def DefineLuz(): # codigo base
 
     glMateriali(GL_FRONT, GL_SHININESS, 51)
 
-def PosicUser(): # codigo base
+def PosicCamera(): # codigo base
     global current_camera_target, current_camera_position, animation_time, TEMPO_CABECA_DIZENDO_SIM, TEMPO_CABECA_CAINDO, TEMPO_ESPERA_NO_CHAO, TEMPO_TORNADO_REFORMANDO, controlar_cam, camera_zoom
 
     glMatrixMode(GL_PROJECTION)
@@ -124,17 +124,16 @@ def PosicUser(): # codigo base
         tempo_atual_fase = animation_time - (TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO)
         progresso = tempo_atual_fase / TEMPO_TORNADO_REFORMANDO
         
-        CAMERA_INICIAL_Y = -2.0  # Posição Y inicial (embaixo)
-        CAMERA_FINAL_Y = 3.0     # Posição Y final (em cima)
-        
-        ALVO_INICIAL_Y = 0.0     # Altura inicial do ponto para onde a câmera olha
-        ALVO_FINAL_Y = 3.0       # Altura final do ponto para onde a câmera olha
+        CAMERA_INICIAL_Y = -2.0  
+        CAMERA_FINAL_Y = 3.0     
+        ALVO_INICIAL_Y = 0.0     
+        ALVO_FINAL_Y = 3.0       
         
         altura_camera = CAMERA_INICIAL_Y + (CAMERA_FINAL_Y - CAMERA_INICIAL_Y) * progresso
         altura_alvo = ALVO_INICIAL_Y + (ALVO_FINAL_Y - ALVO_INICIAL_Y) * progresso
         
-        target_pos = Ponto(0, altura_camera, 5)  # Fixo em X e Z, sobe em Y
-        target_target = Ponto(0, altura_alvo, 0) # Olha para o centro, subindo em Y
+        target_pos = Ponto(0, altura_camera, 5)  
+        target_target = Ponto(0, altura_alvo, 0)
 
     elif animation_time < TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO + TEMPO_CABECA_FORMADA:
         target_pos = Ponto(
@@ -164,12 +163,10 @@ def PosicUser(): # codigo base
             current_camera_position.z - current_camera_target.z
         )
         
-        # Normaliza a direção
         direction_length = direction.length()
         if direction_length > 0:
             direction = direction / direction_length
             
-        # Posição ajustada com base no zoom
         current_camera_position = Ponto(
             current_camera_target.x + direction.x * camera_zoom,
             current_camera_target.y + direction.y * camera_zoom,
@@ -226,7 +223,7 @@ def desenha():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glMatrixMode(GL_MODELVIEW)
 
-    PosicUser()
+    PosicCamera()
     DesenhaPiso()
 
     global animation_time, TEMPO_CABECA_DIZENDO_SIM, TEMPO_CABECA_CAINDO, TEMPO_ESPERA_NO_CHAO, TEMPO_TORNADO_REFORMANDO
