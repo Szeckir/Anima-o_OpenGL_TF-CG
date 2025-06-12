@@ -104,14 +104,15 @@ def PosicUser(): # codigo base
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
 
-    cam_interpolacao = 0.08 # Fator de interpolação para suavizar o movimento da câmera
+    # ia ajudou para suavizar movimento da camera
+    cam_interpolacao = 0.08 
 
     if animation_time < TEMPO_CABECA_DIZENDO_SIM:
-        # Fase 1: Cabeça parada / Nodding - Câmera inicial
         target_pos = camera_config["initial"]["pos"]
         target_target = camera_config["initial"]["target"]
+    
     elif animation_time < TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO:
-        # Fase 2: Queda das partículas - Câmera acompanha o centro de massa
+
         if particles:
             avg_x = sum(p.current_pos.x for p in particles) / len(particles)
             avg_y = sum(p.current_pos.y for p in particles) / len(particles)
@@ -208,10 +209,8 @@ def PosicUser(): # codigo base
               current_camera_target.x, current_camera_target.y, current_camera_target.z,
               0, 1.0, 0)
 
+#codigo base
 def DesenhaLadrilho():
-    """
-    Desenha um único ladrilho para o piso.
-    """
     glColor3f(0.5, 0.5, 0.5)  # desenha QUAD preenchido
     glBegin(GL_QUADS)
     glNormal3f(0, 1, 0)
@@ -230,10 +229,8 @@ def DesenhaLadrilho():
     glVertex3f(0.5, 0.0, -0.5)
     glEnd()
 
+#codigo base
 def DesenhaPiso():
-    """
-    Desenha o piso da cena.
-    """
     glPushMatrix()
     glTranslated(-20, -1, -10) # Ajusta a posição do piso
     for x in range(-20, 20):
@@ -246,19 +243,12 @@ def DesenhaPiso():
     glPopMatrix()
 
 def desenha():
-    """
-    Função principal de desenho da cena OpenGL.
-    """
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glMatrixMode(GL_MODELVIEW)
-    glLoadIdentity() # Garante que a matriz de modelo-visualização esteja limpa
 
-    # Posiciona a câmera novamente em cada frame para garantir que as atualizações de reshape funcionem
     PosicUser()
-
     DesenhaPiso()
 
-    # Lógica de desenho baseada na fase da animação
     global animation_time, TEMPO_CABECA_DIZENDO_SIM, TEMPO_CABECA_CAINDO, TEMPO_ESPERA_NO_CHAO, TEMPO_TORNADO_REFORMANDO
 
     if animation_time < TEMPO_CABECA_DIZENDO_SIM:
@@ -505,10 +495,8 @@ def reshape(width, height):
     glViewport(0, 0, width, height) # Define a viewport para o novo tamanho da janela
     PosicUser() # Recalcula a projeção com a nova proporção
 
+# codigo base
 def main():
-    """
-    Função principal que inicializa o GLUT e entra no loop de eventos.
-    """
     glutInit(sys.argv)
 
     # Define o modelo de operacao da GLUT
@@ -521,7 +509,7 @@ def main():
     glutInitWindowPosition(100, 100)
 
     # Cria a janela passando o título da mesma como argumento
-    glutCreateWindow('T2 - CG')
+    glutCreateWindow(b'Computacao Grafica - Thomaz e Samuel')
 
     # Função responsável por fazer as inicializações
     init()
@@ -534,7 +522,6 @@ def main():
     # Registra a função de callback para redimensionamento da janela
     glutReshapeFunc(reshape)
 
-    # Registra a função de callback para o tempo ocioso (animação)
     glutIdleFunc(update_animation)
 
     try:
