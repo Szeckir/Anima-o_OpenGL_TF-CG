@@ -252,58 +252,47 @@ def desenha():
     global animation_time, TEMPO_CABECA_DIZENDO_SIM, TEMPO_CABECA_CAINDO, TEMPO_ESPERA_NO_CHAO, TEMPO_TORNADO_REFORMANDO
 
     if animation_time < TEMPO_CABECA_DIZENDO_SIM:
-        # Fase 1: Movimento de "sim" da cabeça (desenha o modelo completo em wireframe)
-        # Frequência ajustada para 2 ciclos de movimento
-        angle = 15 * (1 + math.sin(animation_time * 4 * math.pi / TEMPO_CABECA_DIZENDO_SIM)) / 2
+        qtd_movimentos_cabeca = 2
+        angulo_max = 30.0
+
+        fase = animation_time / TEMPO_CABECA_DIZENDO_SIM * (qtd_movimentos_cabeca * 2 * math.pi)
+        angle = angulo_max * (1 + math.sin(fase)) / 2
         
-        glPushMatrix()
-        glRotatef(angle, 1, 0, 0) # Rotação no eixo X para o movimento de "sim"
-        head_model.DesenhaWireframe() # Desenha o modelo em wireframe
-        glPopMatrix()
+        glPushMatrix() # salva atual
+        glRotatef(angle, 1, 0, 0) 
+        head_model.DesenhaWireframe() 
+        glPopMatrix() # restaura anterior
 
     elif animation_time < TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO:
-        # Fase 2: Desmontagem (desenha as partículas)
-        glPointSize(5) # Tamanho dos pontos das partículas
+        glPointSize(5) # tam vertices
         glBegin(GL_POINTS)
         for p in particles:
-            glColor3fv(p.color) # Usa a cor definida para a partícula
             glVertex3f(p.current_pos.x, p.current_pos.y, p.current_pos.z)
         glEnd()
     
     elif animation_time < TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO:
-        # Fase 3: Redemoinho e formação da cabeça (desenha as partículas)
-        glPointSize(5) # Tamanho dos pontos das partículas
+        glPointSize(5) 
         glBegin(GL_POINTS)
         for p in particles:
-            glColor3fv(p.color) # Usa a cor definida para a partícula
             glVertex3f(p.current_pos.x, p.current_pos.y, p.current_pos.z)
         glEnd();
     
     elif animation_time < TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO + TEMPO_CABECA_FORMADA:
-        # Fase 4: Cabeça formada
         glPointSize(5);
         glBegin(GL_POINTS)
         for p in particles:
-            glColor3fv(p.color)
             glVertex3f(p.current_pos.x, p.current_pos.y, p.current_pos.z)
         glEnd();
     
     else:
-        # Fase 5: Extra - Efeito pulsar com rotação
         glPointSize(5)
-        
-        # Cálculo do tempo dentro da fase extra
         current_phase_time = animation_time - (TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO + TEMPO_CABECA_FORMADA)
-        
-        # Rotação da cabeça inteira no eixo Y
-        angle = current_phase_time * 36  # Rotação completa em 10 segundos
-        
+        angle = current_phase_time * 36 
         glPushMatrix()
-        glRotatef(angle, 0, 1, 0)  # Rotação no eixo Y
-        
+        glRotatef(angle, 0, 1, 0) 
         glBegin(GL_POINTS)
+        
         for p in particles:
-            # Usamos a cor atual da partícula que será atualizada em update_animation
             glColor3fv(p.color)
             glVertex3f(p.current_pos.x, p.current_pos.y, p.current_pos.z)
         glEnd()
