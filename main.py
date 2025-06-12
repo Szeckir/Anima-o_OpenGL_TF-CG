@@ -484,17 +484,6 @@ def teclado(key, x, y):
 
     glutPostRedisplay() # Solicita um redesenho após a interação do teclado
 
-def reshape(width, height):
-    """
-    Função de callback para redimensionamento da janela.
-    Mantém a proporção da cena.
-    """
-    if height == 0:
-        height = 1
-    
-    glViewport(0, 0, width, height) # Define a viewport para o novo tamanho da janela
-    PosicUser() # Recalcula a projeção com a nova proporção
-
 # codigo base
 def main():
     glutInit(sys.argv)
@@ -520,8 +509,7 @@ def main():
     # Registra a funcao callback para tratamento das teclas ASCII
     glutKeyboardFunc(teclado)
     # Registra a função de callback para redimensionamento da janela
-    glutReshapeFunc(reshape)
-
+    
     glutIdleFunc(update_animation)
 
     try:
