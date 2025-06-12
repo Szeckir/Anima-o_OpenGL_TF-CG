@@ -13,7 +13,7 @@ from Ponto import Ponto
 head_model: Objeto3D
 particles = []
 animation_time = 0.0 #calcular tempo total
-last_frame_time = 0.0  #seg ultimo frame
+hora_ultimo_frame = 0.0  #seg ultimo frame
 animation_speed = 1.0
 is_playing = False
 animation_phase = 0
@@ -48,7 +48,7 @@ camera_config = {
 }
 
 def init(): 
-    global head_model, particles, last_frame_time, current_camera_position, current_camera_target
+    global head_model, particles, hora_ultimo_frame, current_camera_position, current_camera_target
     
     glClearColor(0.5, 0.5, 0.9, 1.0)
     glClearDepth(1.0)
@@ -69,7 +69,7 @@ def init():
     DefineLuz()
     PosicUser()
 
-    last_frame_time = time.time() # Inicializa o tempo do último frame
+    hora_ultimo_frame = time.time() # Inicializa o tempo do último frame
 
 def DefineLuz(): # codigo base
     luz_ambiente = [0.4, 0.4, 0.4, 1.0]
@@ -112,34 +112,29 @@ def PosicUser(): # codigo base
         target_target = camera_config["initial"]["target"]
     
     elif animation_time < TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO:
-
-        if particles:
-            avg_x = sum(p.current_pos.x for p in particles) / len(particles)
-            avg_y = sum(p.current_pos.y for p in particles) / len(particles)
-            avg_z = sum(p.current_pos.z for p in particles) / len(particles)
-            
-            target_target = Ponto(avg_x, avg_y + camera_config["falling"]["target_offset_y"], avg_z)
-            target_pos = Ponto(avg_x + camera_config["falling"]["pos_offset_x"], 
-                                avg_y + camera_config["falling"]["pos_offset_y"], 
-                                avg_z + camera_config["falling"]["pos_offset_z"])
-        else: # Fallback if no particles (shouldn't happen after init)
-            target_pos = camera_config["initial"]["pos"]
-            target_target = camera_config["initial"]["target"]
+        # calcula ponto central
+        avg_x = sum(p.current_pos.x for p in particles) / len(particles)
+        avg_y = sum(p.current_pos.y for p in particles) / len(particles)
+        avg_z = sum(p.current_pos.z for p in particles) / len(particles)
+        
+        target_target = Ponto(avg_x, avg_y, avg_z)  
+        target_pos = Ponto( avg_x - 1.0, avg_y + 1.5, avg_z - 5.0)
 
     elif animation_time < TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO:
-        # Fase 3: Redemoinho - Câmera vai para baixo e acompanha o tornado
-        current_phase_time = animation_time - (TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO)
-        progress = current_phase_time / TEMPO_TORNADO_REFORMANDO
-
-        # A câmera começa de baixo e sobe um pouco com o tornado
-        target_pos_x = camera_config["tornado"]["pos"].x
-        target_pos_y = camera_config["tornado"]["pos"].y + (progress * 5.0) # Sobe 5 unidades
-        target_pos_z = camera_config["tornado"]["pos"].z
-
-        target_target_y = camera_config["tornado"]["target"].y + (progress * 3.0) # Olha para cima
+        tempo_atual_fase = animation_time - (TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO)
+        progresso = tempo_atual_fase / TEMPO_TORNADO_REFORMANDO
         
-        target_pos = Ponto(target_pos_x, target_pos_y, target_pos_z)
-        target_target = Ponto(camera_config["tornado"]["target"].x, target_target_y, camera_config["tornado"]["target"].z)
+        CAMERA_INICIAL_Y = -2.0  # Posição Y inicial (embaixo)
+        CAMERA_FINAL_Y = 3.0     # Posição Y final (em cima)
+        
+        ALVO_INICIAL_Y = 0.0     # Altura inicial do ponto para onde a câmera olha
+        ALVO_FINAL_Y = 3.0       # Altura final do ponto para onde a câmera olha
+        
+        altura_camera = CAMERA_INICIAL_Y + (CAMERA_FINAL_Y - CAMERA_INICIAL_Y) * progresso
+        altura_alvo = ALVO_INICIAL_Y + (ALVO_FINAL_Y - ALVO_INICIAL_Y) * progresso
+        
+        target_pos = Ponto(0, altura_camera, 5)  # Fixo em X e Z, sobe em Y
+        target_target = Ponto(0, altura_alvo, 0) # Olha para o centro, subindo em Y
 
     elif animation_time < TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO + TEMPO_CABECA_FORMADA:
         # Fase 4: Cabeça formada - Câmera se aproxima do lado
@@ -242,6 +237,7 @@ def DesenhaPiso():
         glTranslated(1, 0, 0)
     glPopMatrix()
 
+# desenha cada vertice da fase
 def desenha():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glMatrixMode(GL_MODELVIEW)
@@ -288,10 +284,11 @@ def desenha():
         glPointSize(5)
         current_phase_time = animation_time - (TEMPO_CABECA_DIZENDO_SIM + TEMPO_CABECA_CAINDO + TEMPO_ESPERA_NO_CHAO + TEMPO_TORNADO_REFORMANDO + TEMPO_CABECA_FORMADA)
         angle = current_phase_time * 36 
+        
         glPushMatrix()
         glRotatef(angle, 0, 1, 0) 
         glBegin(GL_POINTS)
-        
+
         for p in particles:
             glColor3fv(p.color)
             glVertex3f(p.current_pos.x, p.current_pos.y, p.current_pos.z)
@@ -301,20 +298,17 @@ def desenha():
 
     glutSwapBuffers()
 
+# fica sendo chamada a cada frame
 def update_animation():
-    """
-    Função de atualização da lógica da animação. Chamada continuamente.
-    """
-    global animation_time, last_frame_time, animation_phase, is_playing
+    global animation_time, hora_ultimo_frame, animation_phase, is_playing
 
-    current_time = time.time()
-    dt = current_time - last_frame_time
-    last_frame_time = current_time
+    hora_atual = time.time()
+    dt = hora_atual - hora_ultimo_frame
+    hora_ultimo_frame = hora_atual
 
     if is_playing:
-        animation_time += dt * animation_speed
+        animation_time += dt * animation_speed 
 
-        # Lógica das fases da animação
         if animation_time < TEMPO_CABECA_DIZENDO_SIM:
             # Fase 1: Movimento de "sim" da cabeça
             pass # A rotação é aplicada no `desenha()` para o modelo completo.
@@ -422,13 +416,9 @@ def update_animation():
                 p.velocity = Ponto(0,0,0)
                 p.acceleration = Ponto(0,0,0)
 
-
-        # Garante que o tempo da animação não exceda o total
         if animation_time > TEMPO_TOTAL_ANIMACAO:
             animation_time = TEMPO_TOTAL_ANIMACAO
             is_playing = False # Pausa a animação no final
-
-        
 
     glutPostRedisplay() # Solicita um redesenho da cena
 

@@ -1,3 +1,10 @@
+# ************************************************
+#   Ponto.py
+#   Define a classe Ponto
+#   Autor: Márcio Sarroglia Pinho
+#       pinho@pucrs.br
+# ************************************************
+
 import math
 
 """ Classe Ponto """
